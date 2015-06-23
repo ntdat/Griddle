@@ -15,6 +15,7 @@ var GridTable = React.createClass({
       "columnSettings": null,
       "rowSettings": null,
       "sortSettings": null,
+      "multipleSelectionSettings": null,
       "className": "",
       "enableInfiniteScroll": false,
       "nextPage": null,
@@ -35,6 +36,7 @@ var GridTable = React.createClass({
       "parentRowExpandedComponent": "▼",
       "externalLoadingComponent": null,
       "externalIsLoading": false,
+      "onRowClick": null
     }
   },
   getInitialState: function(){
@@ -121,7 +123,7 @@ var GridTable = React.createClass({
         var displayEnd = Math.min(displayStart + visibleRecordCount * 1.25, this.props.data.length - 1);
 
         // Split the amount of nodes.
-        nodeData = nodeData.slice(displayStart, displayEnd);
+        nodeData = nodeData.slice(displayStart, displayEnd+1);
 
         // Set the above and below nodes.
         var aboveSpacerRowStyle = { height: (displayStart * adjustedHeight) + "px" };
@@ -141,7 +143,8 @@ var GridTable = React.createClass({
             parentRowExpandedClassName={that.props.parentRowExpandedClassName} parentRowCollapsedClassName={that.props.parentRowCollapsedClassName}
             parentRowExpandedComponent={that.props.parentRowExpandedComponent} parentRowCollapsedComponent={that.props.parentRowCollapsedComponent}
             data={row} key={uniqueId + '-container'} uniqueId={uniqueId} columnSettings={that.props.columnSettings} rowSettings={that.props.rowSettings} paddingHeight={that.props.paddingHeight}
-            rowHeight={that.props.rowHeight} hasChildren={hasChildren} tableClassName={that.props.className}/>)
+		    multipleSelectionSettings={that.props.multipleSelectionSettings}
+            rowHeight={that.props.rowHeight} hasChildren={hasChildren} tableClassName={that.props.className} onRowClick={that.props.onRowClick} />)
       });
 
       // Add the spacer rows for nodes we're not rendering.
@@ -220,6 +223,7 @@ var GridTable = React.createClass({
     var tableHeading = (this.props.showTableHeading ?
         <GridTitle useGriddleStyles={this.props.useGriddleStyles} useGriddleIcons={this.props.useGriddleIcons}
           sortSettings={this.props.sortSettings}
+		  multipleSelectionSettings={this.props.multipleSelectionSettings}
           columnSettings={this.props.columnSettings}
           rowSettings={this.props.rowSettings}/>
         : "");
@@ -240,7 +244,7 @@ var GridTable = React.createClass({
         }
         : null;
       pagingContent = (<tbody><tr>
-          <td colSpan={this.props.columnSettings.getVisibleColumnCount()} style={pagingStyles} className="footer-container">
+          <td colSpan={this.props.multipleSelectionSettings.isMultipleSelection ? this.props.columnSettings.getVisibleColumnCount() + 1 : this.props.columnSettings.getVisibleColumnCount()} style={pagingStyles} className="footer-container">
             {this.props.pagingContent}
           </td>
         </tr></tbody>)

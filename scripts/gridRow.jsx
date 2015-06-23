@@ -4,6 +4,7 @@
 var React = require('react');
 var _ = require('underscore');
 var ColumnProperties = require('./columnProperties.js');
+var powerPick = require('./powerPick.js');
 
 var GridRow = React.createClass({
     getDefaultProps: function(){
@@ -22,12 +23,31 @@ var GridRow = React.createClass({
         "parentRowCollapsedClassName": "parent-row",
         "parentRowExpandedClassName": "parent-row expanded",
         "parentRowCollapsedComponent": "▶",
-        "parentRowExpandedComponent": "▼"
+        "parentRowExpandedComponent": "▼",
+        "onRowClick": null,
+	    "multipleSelectionSettings": null
       }
     },
-    handleClick: function(){
-      this.props.toggleChildren();
+    handleClick: function(e){
+        if(this.props.onRowClick !== null && _.isFunction(this.props.onRowClick) ){
+            this.props.onRowClick(this, e);
+        }else if(this.props.hasChildren){
+            this.props.toggleChildren();
+        }
     },
+    handleSelectionChange: function(e) {
+      //hack to get around warning that's not super useful in this case
+      return;
+    },
+	handleSelectClick: function(e) {
+		if(this.props.multipleSelectionSettings.isMultipleSelection) {
+			if(e.target.type === "checkbox") {
+				this.props.multipleSelectionSettings.toggleSelectRow(this.props.data, this.refs.selected.getDOMNode().checked);
+			} else {
+				this.props.multipleSelectionSettings.toggleSelectRow(this.props.data, !this.refs.selected.getDOMNode().checked)
+			}
+		}
+	},
     verifyProps: function(){
         if(this.props.columnSettings === null){
            console.error("gridRow: The columnSettings prop is null and it shouldn't be");
@@ -60,7 +80,7 @@ var GridRow = React.createClass({
 
         _.defaults(dataView, defaults);
 
-        var data = _.pairs(_.pick(dataView, columns));
+        var data = _.pairs(powerPick(dataView, columns));
 
         var nodes = data.map((col, index) => {
             var returnValue = null;
@@ -68,9 +88,9 @@ var GridRow = React.createClass({
 
             //todo: Make this not as ridiculous looking
             var firstColAppend = index === 0 && this.props.hasChildren && this.props.showChildren === false && this.props.useGriddleIcons ?
-              <span style={this.props.useGriddleStyles&&{fontSize: "10px", marginRight:"5px"}}>{this.props.parentRowCollapsedComponent}</span> :
+              <span style={this.props.useGriddleStyles ? {fontSize: "10px", marginRight:"5px"} : null}>{this.props.parentRowCollapsedComponent}</span> :
               index === 0 && this.props.hasChildren && this.props.showChildren && this.props.useGriddleIcons ?
-                <span style={this.props.useGriddleStyles&&{fontSize: "10px"}}>{this.props.parentRowExpandedComponent}</span> : "";
+                <span style={this.props.useGriddleStyles ? {fontSize: "10px"} : null}>{this.props.parentRowExpandedComponent}</span> : "";
 
             if(index === 0 && this.props.isChildRow && this.props.useGriddleStyles){
               columnStyles = _.extend(columnStyles, {paddingLeft:10})
@@ -78,11 +98,25 @@ var GridRow = React.createClass({
 
             if (this.props.columnSettings.hasColumnMetadata() && typeof meta !== "undefined"){
               var colData = (typeof meta.customComponent === 'undefined' || meta.customComponent === null) ? col[1] : <meta.customComponent data={col[1]} rowData={dataView} metadata={meta} />;
-              returnValue = (meta == null ? returnValue : <td onClick={this.props.hasChildren && this.handleClick} className={meta.cssClassName} key={index} style={columnStyles}>{colData}</td>);
+              returnValue = (meta == null ? returnValue : <td onClick={this.handleClick} className={meta.cssClassName} key={index} style={columnStyles}>{colData}</td>);
             }
 
-            return returnValue || (<td onClick={this.props.hasChildren && this.handleClick} key={index} style={columnStyles}>{firstColAppend}{col[1]}</td>);
+            return returnValue || (<td onClick={this.handleClick} key={index} style={columnStyles}>{firstColAppend}{col[1]}</td>);
         });
+
+		if(nodes && this.props.multipleSelectionSettings && this.props.multipleSelectionSettings.isMultipleSelection) {
+			var selectedRowIds = this.props.multipleSelectionSettings.getSelectedRowIds();
+
+			nodes.unshift(
+              <td key="selection" style={columnStyles}>
+                <input
+                    type="checkbox"
+                    checked={this.props.multipleSelectionSettings.getIsRowChecked(dataView)}
+                    onChange={this.handleSelectionChange}
+                    ref="selected" />
+              </td>
+            );
+		}
 
         //Get the row from the row settings.
         var className = that.props.rowSettings&&that.props.rowSettings.getBodyRowMetadataClass(that.props.data) || "standard-row";
@@ -92,7 +126,7 @@ var GridRow = React.createClass({
         } else if (that.props.hasChildren){
             className = that.props.showChildren ? this.props.parentRowExpandedClassName : this.props.parentRowCollapsedClassName;
         }
-        return (<tr className={className}>{nodes}</tr>);
+        return (<tr onClick={this.props.multipleSelectionSettings && this.props.multipleSelectionSettings.isMultipleSelection ? this.handleSelectClick : null} className={className}>{nodes}</tr>);
     }
 });
 
